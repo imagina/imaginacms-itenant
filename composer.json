@@ -1,0 +1,39 @@
+{
+    "name": "imagina/itenant-module",
+    "description": "Module to tenancy app",
+    "type": "asgard-module",
+    "license": "MIT",
+    "require": {
+        "php": "^8.1",
+        "composer/installers": "~1.0",
+        "imagina/core-module": "v10.x-dev"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.5",
+        "phpunit/phpunit": "^10"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Modules\\Itenant\\": ".",
+            "Modules\\": "Modules/"
+        }
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true,
+    "authors": [
+        {
+            "name": "Soporte Imagina",
+            "email": "soporte@imaginacolombia.com"
+        }
+    ],
+    "extra": {
+        "branch-alias": {
+            "dev-v10.x": "10.0.x-dev"
+        }
+    },
+    "autoload": {
+        "psr-4": {
+            "Modules\\Itenant\\": ""
+        }
+    }
+}

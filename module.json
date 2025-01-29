@@ -1,0 +1,15 @@
+{
+    "name": "Itenant",
+    "alias": "itenant",
+    "version": "1.0.0",
+	"description": "",
+    "active": 1,
+    "keywords": [],
+    "priority": 1,
+    "providers": [
+        "Modules\\Itenant\\Providers\\ItenantServiceProvider",
+        "Modules\\Itenant\\Providers\\EventServiceProvider",
+        "Modules\\Itenant\\Providers\\RouteServiceProvider"
+    ],
+    "files": []
+}
