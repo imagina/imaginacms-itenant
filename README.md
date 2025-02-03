@@ -18,7 +18,7 @@ php artisan module:seed Itenant
 
 ## Commands
 
-### All Modules
+### All Modules (Examples)
 ```bash
 php artisan tenants:run module:list --tenants="1
 ```
@@ -31,7 +31,7 @@ php artisan tenants:run module:migrate --tenants="1"
 php artisan tenants:run module:seed --tenants="1"
 ```
 
-### Specific Module
+### Specific Module (Example: run seed to specific module in this tenant)
 ```bash
 php artisan tenant:run module:seed --argument="module=moduleName" --tenants="1"
 ```
