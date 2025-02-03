@@ -20,7 +20,7 @@ class ModuleService
      * @param $organization (Organization created)
      * @param $includeModules (Flag that determines if the modules that are obtained are the ones to be ignored or installed)
      */
-    public function __construct(array $data,object $organization, $includeModules = false)   
+    public function __construct(array $data,object $organization, $includeModules = false)
     {
         $this->data = $data;
         $this->organization = $organization;
@@ -61,7 +61,7 @@ class ModuleService
 
             //Clear Cache Modules | CASE: Only when is installing a Module
             $this->clearCacheModules();
-        
+
         }
 
         //Process to install module in Background | CASE: Only when creating tenant first time
@@ -74,7 +74,7 @@ class ModuleService
      /**
      * Get the main tenancy tables to Migrate
      * @param $prefixes (Tables to not include when migrate)
-     */	
+     */
     private function getMainTenancyTables($prefixes)
     {
 
@@ -143,8 +143,8 @@ class ModuleService
      * Get Modules to Install or to Ignore
      */
     private function getModules($modules)
-    {   
-    
+    {
+
         //Modules to Install
         if($this->includeModules){
 
@@ -154,12 +154,12 @@ class ModuleService
                 'enabled' => 0
             ]];
             $modulesData = $this->moduleRepository->getItemsBy(json_decode(json_encode($params)));
-            
+
             //Get Alias
             $modulesAlias = $modulesData->pluck('alias')->toArray();
             //Intersect to get dependences
             $matchedModules = array_intersect_key($this->optionalModules, array_flip($modulesAlias));
-            
+
             return $this->moveToFirstLevel($matchedModules);
         }else{
             //Mdoules to ignore
@@ -194,10 +194,10 @@ class ModuleService
      * @param $tableName (Table to sync)
      */
     private function syncTableToTenant($tableName)
-    {   
+    {
         if(!\Schema::hasTable($tableName)) {
 
-            
+
             \DB::statement('SET FOREIGN_KEY_CHECKS=0');
 
             $moduleName = explode("__", $tableName);
@@ -219,9 +219,10 @@ class ModuleService
                     // Convert the data into an array with keys (column names preserved)
                     $formattedData = $data->map(function ($item) {
                         $itemArray = (array) $item; // Convert each item to an associative array
-                        
+
                         //Set organization id in table if exists and contain data
-                        if(isset($itemArray['organization_id']) && !is_null($itemArray['organization_id'])){
+                        //if(isset($itemArray['organization_id']) && !is_null($itemArray['organization_id'])){
+                        if(array_key_exists('organization_id',$itemArray)){
                             $itemArray['organization_id'] = $this->organization->id;
                         }
                         return $itemArray;
@@ -235,7 +236,7 @@ class ModuleService
 
             //Update organization Id
             if($tableName == 'itenant__organizations') \DB::table($tableName)->update(['id' => $this->organization->id]);
-            
+
             \Log::info("$this->log syncTableToTenant: $tableName");
             \DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
@@ -253,7 +254,7 @@ class ModuleService
 
         // Remember if is not include (Case Creating) | Include is Installing
         $regexp = !$this->includeModules ? 'not regexp' : 'regexp';
-     
+
         // Search Imageables in Base Tenant DB with filter $regexp
         $imageables = \DB::connection($this->baseTenantConnection)->table('media__imageables')
         ->where('imageable_type', $regexp, implode('|', array_map(function ($moduleName) {
@@ -261,7 +262,7 @@ class ModuleService
             }, $moduleNames)
         ))->get();
 
-        if ($imageables->isNotEmpty()) 
+        if ($imageables->isNotEmpty())
         {
 
             $imageablesIds = $imageables->pluck('file_id')->toArray();
@@ -271,7 +272,7 @@ class ModuleService
             ->whereIn('id', $imageablesIds)->get();
 
             //Validation insert data
-            if ($files->isNotEmpty()) 
+            if ($files->isNotEmpty())
             {
                 // Convert the data into an array with keys (column names preserved)
                 $filesFormatted = $files->map(function ($item) {
@@ -283,7 +284,9 @@ class ModuleService
                 // Insert new files and get the new IDs
                 $newFileIds = [];
                 foreach ($filesFormatted as $file) {
-                    $newFileId = \DB::table('media__files')->insertGetId($file);
+                    $copyFile = $file;
+                    unset($copyFile['id']);
+                    $newFileId = \DB::table('media__files')->insertGetId($copyFile);
                     $newFileIds[$file['id']] = $newFileId;
                 }
 
@@ -292,7 +295,9 @@ class ModuleService
                     if (isset($newFileIds[$imageable->file_id])) {
                         $imageable->file_id = $newFileIds[$imageable->file_id];
                     }
-                    return (array)$imageable;
+                    $imageableArray = (array)$imageable;
+                    unset($imageableArray['id']);
+                    return $imageableArray;
                 })->toArray();
 
                 // Insert updated imageables
@@ -303,12 +308,12 @@ class ModuleService
         }
 
     }
-    
-    /* 
+
+    /*
      * Modules to set Enabled or Disabled incluiding permissions
      */
     private function setEnabledModules($modules)
-    { 
+    {
         \Log::info($this->log . "setEnabledModules");
 
         $enabled = (int)$this->includeModules;
@@ -334,7 +339,7 @@ class ModuleService
 
         //Get only module names
         $modulesIndex = array_keys($modules);
-       
+
         //Get Modules
         $params = ['filter' => ['alias' => $modulesIndex]];
         $modulesData = $this->moduleRepository->getItemsBy(json_decode(json_encode($params)));
@@ -356,14 +361,14 @@ class ModuleService
         //Update Permissions in Role
         $role->permissions = array_merge($role->permissions, $allPermissions);
         $role->save();
-        
+
     }
-    
+
     /**
      * Clear Cache Modules
      */
     private function clearCacheModules()
-    {   
+    {
         //Only when is installing a Module
         if($this->includeModules){
             \Log::info($this->log . "clearCacheModules");
@@ -383,7 +388,7 @@ class ModuleService
         }
     }
 
-    
-   
+
+
 
 }
