@@ -15,3 +15,23 @@ php artisan module:enable Itenant
 ```bash
 php artisan module:seed Itenant
 ```
+
+## Commands
+
+### All Modules to a Tenant
+```bash
+php artisan tenants:run module:list --tenants="1
+```
+
+```bash
+php artisan tenants:run module:migrate --tenants="1"
+```
+
+```bash
+php artisan tenants:run module:seed --tenants="1"
+```
+
+### Specific Module to  a Tenant
+```bash
+php artisan tenant:run module:seed --argument="module=moduleName" --tenants="1"
+```
