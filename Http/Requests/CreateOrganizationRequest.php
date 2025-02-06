@@ -10,6 +10,7 @@ class CreateOrganizationRequest extends BaseFormRequest
     {
         return [
             'modules'=> 'required|array',
+            'layout_id' => 'required|integer'
         ];
     }
 
@@ -38,5 +39,5 @@ class CreateOrganizationRequest extends BaseFormRequest
     public function getValidator(){
         return $this->getValidatorInstance();
     }
-    
+
 }
