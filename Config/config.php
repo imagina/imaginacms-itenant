@@ -21,6 +21,7 @@ return [
         ],
         'iblog' => ['dbPrefix' => 'iblog'],
         'slider' => ['dbPrefix' => 'slider'],
+        'ibuilder' => ['dbPrefix' => 'ibuilder'],
         'icommercepayu' => []
     ],
 
