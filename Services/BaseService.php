@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Storage;
 //Services
 use Modules\Itenant\Services\ModuleService;
 use Modules\Itenant\Services\UserService;
+use Modules\Itenant\Services\ThemeService;
 
 /**
  * Class BaseService: Process to create the tenant in the multi database
@@ -16,8 +17,8 @@ class BaseService
 {
 
   private $log = "Itenant: BaseService|| ";
-  private $authApi;
 
+  private $baseTenantConnection;
   private $userService;
   private $userIdAdmin;
 
@@ -28,6 +29,7 @@ class BaseService
   public function __construct(UserService $userService)
   {
       $this->userService = $userService;
+      $this->baseTenantConnection = config('asgard.itenant.config.baseTenantConnection');
       $this->userIdAdmin = config('asgard.itenant.config.userIdAdmin');
   }
 
@@ -37,22 +39,30 @@ class BaseService
   public function createTenantInMultiDatabase($data)
   {
 
-    \Log::info($this->log."createTenantInMultiDatabase|START");
+    \Log::info('----------------------------------------------------------');
+    \Log::info($this->log."createTenantInMultiDatabase|INIT");
+    \Log::info('----------------------------------------------------------');
 
     //Get User Registered in Central Database
     $data['user'] = \Auth::user();
-   
+
     //All processes to create a Tenant
     $organization = $this->createTenant($data);
-    //$organization = Organization::find(10); //Only testing
+    //$organization = Organization::find(7); //Only testing
 
-    //Init Tenant | TODO: Maybe move this inside module service
+    //Init Tenant
     \Log::info($this->log."INITIALIZING TenantID: $organization->id");
     tenancy()->initialize($organization->id);
 
     //Init Installation in Tenant
-    $moduleService = app()->makeWith(ModuleService::class, ['data' => $data, 'organization' => $organization]);
+    $moduleService = app()->makeWith(ModuleService::class, ['data' => $data, 'organization' => $organization, 'baseTenantConnection' => $this->baseTenantConnection]);
     $moduleService->init();
+
+    //Process to the Theme (Ibuilder)
+    $this->syncThemeData($data,$organization);
+
+    //Process to data module in Background
+    $this->seedersIlocations();
 
     //Post Install Commands Extras
     $this->postInstallCommands();
@@ -63,8 +73,6 @@ class BaseService
     //Update User in Tenant with new data
     $this->userService->updateUser($data,$this->userIdAdmin);
 
-    
-    //TODO: Update rol in Central DB
 
     //Authenticate user tenant and get data auth
     $authData = $this->userService->authenticate($data,$this->userIdAdmin);
@@ -72,8 +80,9 @@ class BaseService
     //Get reedirect Url
     $reedirectUrl = $this->createRedirectUrl($organization,$authData);
 
-    
-    \Log::info($this->log."createTenantInMultiDatabase||FINISHED| => OrganizationId: $organization->id");
+    \Log::info('----------------------------------------------------------');
+    \Log::info($this->log."createTenantInMultiDatabase||END| OrganizationId: $organization->id");
+    \Log::info('----------------------------------------------------------');
 
     return [
       "redirectUrl" => $reedirectUrl
@@ -81,7 +90,7 @@ class BaseService
 
   }
 
- 
+
   /**
    * Create Tenant
    */
@@ -90,17 +99,7 @@ class BaseService
 
     \Log::info($this->log."Create Tenant");
 
-    $dataToCreate = [
-      'user_id' => $data['user']->id,
-      'title' => $data[locale()]['title'] ?? $data['user']->present()->fullname,
-      'status' => $data['status'] ?? json_decode(setting('itenant::defaultTenantStatus', null, 'true')),
-      'layout_id' => $data['layout_id'] ?? json_decode(setting('itenant::defaultLayout', null, null)),
-      'enable' => $data['enable'] ?? json_decode(setting('itenant::defaultTenantStatus', null, 'true')),
-      'category_id' => $data['category_id'] ?? null,
-    ];
-    
-    //Create Organization
-    $organization = Organization::create($dataToCreate);
+    $organization = $this->createOrganization($data);
 
     $this->setUserOrganization($data,$organization);
 
@@ -108,10 +107,28 @@ class BaseService
 
     $this->createDomain($organization);
 
-    //Log Infor
-    \Log::info('----------------------------------------------------------');
-    \Log::info('Created Organization Id: '.$organization->id.' | Domain: '.$organization->domain);
-    \Log::info('----------------------------------------------------------');
+    return $organization;
+
+  }
+
+  /**
+   * Create Organization
+   */
+  private function createOrganization($data)
+  {
+
+    $dataToCreate = [
+      'user_id' => $data['user']->id,
+      'title' => $data[locale()]['title'] ?? $data['user']->present()->fullname,
+      'status' => $data['status'] ?? json_decode(setting('itenant::defaultTenantStatus', null, 'true')),
+      'enable' => $data['enable'] ?? json_decode(setting('itenant::defaultTenantStatus', null, 'true')),
+      'category_id' => $data['category_id'] ?? null,
+    ];
+
+    //Create Organization
+    $organization = Organization::create($dataToCreate);
+
+    \Log::info($this->log.'OrganizationId: '.$organization->id);
 
     return $organization;
 
@@ -122,7 +139,7 @@ class BaseService
    */
   private function setUserOrganization($data,&$organization)
   {
-     
+
     $roleId = $data['user']->roles->first()->id;
     $organization->users()->sync([$data["user"]->id =>['role_id' => $roleId]]);
   }
@@ -144,17 +161,46 @@ class BaseService
    */
   private function createDomain(&$organization)
   {
-    
+
     //Base Url Domain
     $configUrl = config('app.url');
-    if (config("asgard.itenant.config.tenant.appUrl") && !empty(config("asgard.itenant.config.tenant.appUrl"))) 
+    if (config("asgard.itenant.config.tenant.appUrl") && !empty(config("asgard.itenant.config.tenant.appUrl")))
       $configUrl = config("asgard.itenant.config.tenant.appUrl");
-    
+
     //Create Domain
     $organization->domains()->create([
         'domain' => $data['organization']['domain'] ?? $data['domain'] ?? $organization->slug.'.'.parse_url(config('app.url'), PHP_URL_HOST),
         'type' => 'default',
     ]);
+
+    \Log::info($this->log.'Domain: '.$organization->domain);
+
+  }
+
+  /**
+  * Init Processes to Theme (Module Ibuilder)
+  */
+  private function syncThemeData(array $data, $organization)
+  {
+
+    $themeService = app()->makeWith(ThemeService::class, [
+      'layoutId' => $data['layout_id'],
+      'baseConnection' => $this->baseTenantConnection,
+      'organization' => $organization
+    ]);
+
+    $themeService->init();
+
+  }
+
+  /**
+   * Install Ilocations
+   */
+  public function seedersIlocations()
+  {
+
+    \Log::info($this->log . 'seedersIlocations');
+    \Artisan::call('module:seed', ['module' => "Ilocations"]);
 
   }
 
