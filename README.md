@@ -1,4 +1,4 @@
-# imaginacms-itenant 
+# imaginacms-itenant
 
 ## Install
 ```bash
@@ -35,3 +35,17 @@ php artisan tenants:run module:seed --tenants="1"
 ```bash
 php artisan tenant:run module:seed --argument="module=moduleName" --tenants="1"
 ```
+
+### Update Tenants DB (Recommended after globla composer update)
+
+#### All tenants
+
+```bash
+php artisan itenant:module-db-update
+```
+#### Update Specific Tenants
+
+```bash
+php artisan itenant:module-db-update --tenants="2,3"
+```
+

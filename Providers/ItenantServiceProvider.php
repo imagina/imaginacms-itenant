@@ -27,6 +27,8 @@ class ItenantServiceProvider extends ServiceProvider
     public function register()
     {
         $this->registerBindings();
+        $this->registerCommands();
+
         $this->app['events']->listen(BuildingSidebar::class, RegisterItenantSidebar::class);
 
         $this->app['events']->listen(LoadingBackendTranslations::class, function (LoadingBackendTranslations $event) {
@@ -38,7 +40,7 @@ class ItenantServiceProvider extends ServiceProvider
 
     public function boot()
     {
-       
+
         $this->publishConfig('itenant', 'config');
         $this->publishConfig('itenant', 'crud-fields');
 
@@ -57,6 +59,16 @@ class ItenantServiceProvider extends ServiceProvider
     public function provides()
     {
         return array();
+    }
+
+    /**
+     * Register the console commands
+     */
+    private function registerCommands()
+    {
+        $this->commands([
+          \Modules\Itenant\Console\ModuleDbUpdate::class,
+        ]);
     }
 
     private function registerBindings()
