@@ -30,7 +30,13 @@ $router->group(['prefix' =>'/itenant/v1'], function (Router $router) {
           'path' => '/install-modules', // Route Path
           'uses' => 'installModules', //Name of the controller method to use
           //'middleware' => ['auth:api'] // if not set up middleware, auth:api will be the default
-        ]
+        ],
+        [
+          'method' => 'post',
+          'path' => '/update-layout', // Route Path
+          'uses' => 'updateLayout', //Name of the controller method to use
+          'middleware' => ['auth:api'] // if not set up middleware, auth:api will be the default
+        ],
       ]
     ]);
     $router->apiCrud([

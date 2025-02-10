@@ -10,8 +10,10 @@ use Illuminate\Http\Request;
 
 use Modules\Itenant\Http\Requests\CreateOrganizationRequest;
 use Modules\Itenant\Http\Requests\InstallModulesRequest;
+use Modules\Itenant\Http\Requests\UpdateLayoutRequest;
 
 use Modules\Itenant\Services\ModuleService;
+use Modules\Itenant\Services\ThemeService;
 
 class OrganizationApiController extends BaseCrudController
 {
@@ -21,7 +23,7 @@ class OrganizationApiController extends BaseCrudController
   private $log = "Itenant: OrganizationApiController|| ";
 
   public function __construct(
-    Organization $model, 
+    Organization $model,
     OrganizationRepository $modelRepository)
   {
     $this->model = $model;
@@ -35,7 +37,7 @@ class OrganizationApiController extends BaseCrudController
   {
 
     try {
-    
+
       //\DB::beginTransaction();
 
       //Get data
@@ -76,7 +78,7 @@ class OrganizationApiController extends BaseCrudController
   {
 
     try {
-      
+
       //Get data
       $data = $request->input('attributes');
 
@@ -92,6 +94,44 @@ class OrganizationApiController extends BaseCrudController
       $moduleService->init();
 
       $response = ['data' => 'Process finished'];
+    } catch (\Exception $e) {
+      $status = $this->getStatusError($e->getCode());
+      \Log::error($e);
+      $response = ["errors" => $e->getMessage()];
+    }
+
+    return response()->json($response, $status ?? 200);
+  }
+
+  /**
+   * Update layout to tenant
+   */
+  public function updateLayout(Request $request)
+  {
+    try {
+
+      //Get data
+      $data = $request->input('attributes');
+
+      //Validate Request
+      $this->validateRequestApi(new UpdateLayoutRequest((array) $data));
+
+      //If not exist, tenancy is initialized already by domain
+      if(isset($data['organization_id']))
+        tenancy()->initialize($data["organization_id"]);
+
+      //Module Service with Params
+      $themeService = app()->makeWith(ThemeService::class, [
+        'layoutId' => $data['layout_id'],
+        'baseConnection'=> config('asgard.itenant.config.baseTenantConnection'),
+        'organization' => tenant()
+      ]);
+
+      //Init Proccess
+      $themeService->init();
+
+      $response = ['data' => 'Process finished'];
+
     } catch (\Exception $e) {
       $status = $this->getStatusError($e->getCode());
       \Log::error($e);

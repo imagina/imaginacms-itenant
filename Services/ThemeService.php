@@ -40,7 +40,7 @@ class ThemeService
     \Log::info($this->log . "INIT");
     \Log::info('------------------------------------------------');
 
-    //Create Ibuilder Tables
+    //Create Ibuilder Tables if not exist
     $this->createTables();
 
     //Validation existLayout
@@ -48,6 +48,9 @@ class ThemeService
 
     //Continue with Processes
     if(is_null($existLayout)){
+
+      //Set default in 0 if exist
+      $this->updateDefaultLayout();
 
       //Process to create Layout Base
       $optionsLayout = $this->createLayout($this->layoutId);
@@ -68,6 +71,14 @@ class ThemeService
         }
       }
 
+    }else{
+
+      //The Layouts exist and is not the default
+      if(!$existLayout->default){
+        $this->updateDefaultLayout();
+        // $existLayout is new default
+        \DB::table('ibuilder__layouts')->where('id',$existLayout->id)->update(['default' => 1]);
+      }
 
     }
 
@@ -236,15 +247,37 @@ class ThemeService
    */
   private function addBuildables()
   {
-    \Log::info($this->log . 'addBuildables');
 
-    $data = [
-      "entity_id" => 1,
-      "entity_type" => "Modules\Page\Entities\Page",
-      "type" => "home",
-      "organization_id" => $this->organization->id
-    ];
-    \DB::table('ibuilder__buildables')->insert($data);
+    $count = \DB::table('ibuilder__buildables')->where('type', 'home')->count();
+
+    if ($count == 0) {
+
+      \Log::info($this->log . 'addBuildables');
+
+      $data = [
+        "entity_id" => 1,
+        "entity_type" => "Modules\Page\Entities\Page",
+        "type" => "home",
+        "organization_id" => $this->organization->id
+      ];
+
+      \DB::table('ibuilder__buildables')->insert($data);
+    }
+
+  }
+
+  /**
+   * Set default layout to 0
+   */
+  private function updateDefaultLayout()
+  {
+
+    \Log::info($this->log . 'updateDefaultLayout');
+
+    //Set new default value only type home
+    \DB::table('ibuilder__layouts')
+          ->where(['type' => 'home', 'default' => 1])
+          ->update(['default' => 0]);
 
   }
 
