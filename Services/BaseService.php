@@ -56,7 +56,7 @@ class BaseService
 
     //Init Installation in Tenant
     $moduleService = app()->makeWith(ModuleService::class, ['data' => $data, 'organization' => $organization, 'baseTenantConnection' => $this->baseTenantConnection]);
-    $moduleService->init();
+    $moduleService->installModules();
 
     //Process to the Theme (Ibuilder)
     $this->syncThemeData($data,$organization);
