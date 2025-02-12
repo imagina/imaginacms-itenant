@@ -102,9 +102,7 @@ class ThemeService
       $tables = $this->migrateService->getMainTables($this->modulesPrefix);
 
       //Sync tables from base
-      foreach ($tables as $tableName) {
-        $this->migrateService->syncTable($tableName,false); //False to not Copy data for this case
-      }
+      $this->migrateService->syncTables($tables,false); //False to not Copy data for this case
 
     }
 
