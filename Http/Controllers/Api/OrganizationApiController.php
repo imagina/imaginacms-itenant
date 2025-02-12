@@ -9,7 +9,7 @@ use Modules\Itenant\Repositories\OrganizationRepository;
 use Illuminate\Http\Request;
 
 use Modules\Itenant\Http\Requests\CreateOrganizationRequest;
-use Modules\Itenant\Http\Requests\InstallModulesRequest;
+use Modules\Itenant\Http\Requests\ManageModulesRequest;
 use Modules\Itenant\Http\Requests\UpdateLayoutRequest;
 
 use Modules\Itenant\Services\ModuleService;
@@ -71,10 +71,9 @@ class OrganizationApiController extends BaseCrudController
   }
 
   /**
-   * Add Module - Tenant
-   * New Version
+   * Manage Modules
    */
-  public function installModules(Request $request)
+  public function manageModules(Request $request)
   {
 
     try {
@@ -83,7 +82,7 @@ class OrganizationApiController extends BaseCrudController
       $data = $request->input('attributes');
 
       //Validate Request
-      $this->validateRequestApi(new InstallModulesRequest((array) $data));
+      $this->validateRequestApi(new ManageModulesRequest((array) $data));
 
       //Init Tenant
       \Log::info($this->log . "INITIALIZING TenantID: " . $data['organization_id']);
@@ -91,7 +90,7 @@ class OrganizationApiController extends BaseCrudController
 
       //Module Service with Params
       $moduleService = app()->makeWith(ModuleService::class, ['data' => $data, 'organization' => tenant(), 'includeModules' => true]);
-      $moduleService->init();
+      $moduleService->manageModules();
 
       $response = ['data' => 'Process finished'];
     } catch (\Exception $e) {
@@ -140,5 +139,7 @@ class OrganizationApiController extends BaseCrudController
 
     return response()->json($response, $status ?? 200);
   }
+
+
 
 }

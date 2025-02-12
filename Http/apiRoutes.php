@@ -27,9 +27,9 @@ $router->group(['prefix' =>'/itenant/v1'], function (Router $router) {
       'customRoutes' => [ // Include custom routes if needed
         [
           'method' => 'post',
-          'path' => '/install-modules', // Route Path
-          'uses' => 'installModules', //Name of the controller method to use
-          //'middleware' => ['auth:api'] // if not set up middleware, auth:api will be the default
+          'path' => '/manage-modules', // Route Path
+          'uses' => 'manageModules', //Name of the controller method to use
+          'middleware' => ['auth:api'] // if not set up middleware, auth:api will be the default
         ],
         [
           'method' => 'post',
