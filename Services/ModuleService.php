@@ -17,6 +17,8 @@ class ModuleService
   private $includeModules;
   private $moduleRepository;
 
+  private $migrateService;
+
   /**
    * @param $data (From Request and from Base Service)
    * @param $organization (Organization created)
@@ -32,57 +34,82 @@ class ModuleService
     $this->optionalModules = config('asgard.itenant.config.optionalModules');
 
     $this->moduleRepository = app("Modules\Isite\Repositories\ModuleRepository");
+
+    $this->migrateService = app()->makeWith(MigrateService::class, [
+      'baseConnection' => $this->baseTenantConnection,
+      'includeModules' => $this->includeModules,
+      'organization' => $this->organization
+    ]);
+
   }
 
   /**
-   * Init Installation Modules
+   * Installation Modules
+   * used by: Endpoint CreateTenant, ManageModules Method
    */
-  public function init()
+  public function installModules()
   {
 
     \Log::info('------------------------------------------------');
-    \Log::info($this->log . "INIT");
+    \Log::info($this->log . "installModules|INIT");
     \Log::info('------------------------------------------------');
 
-    //Get Modules to ignore and not install OR Only modules to install
+    //Get Modules to "ignore and not install" OR "Only modules to install" | (With dependences)
     $modules = $this->getModules($this->data['modules']);
 
-    if (!empty($modules)) {
+    //Extra Validation
+    if (empty($modules))
+      throw new \Exception('There are no modules to process (Modules already installed, if you need to enable them again or disable them, use the [enabled] attribute)',500);
 
-      $migrateService = app()->makeWith(MigrateService::class, [
-        'baseConnection' => $this->baseTenantConnection,
-        'includeModules' => $this->includeModules,
-        'organization' => $this->organization
-      ]);
+    //Processes to migrate
+    $this->migrateService->migrateAndCopyDataFromModules($modules);
 
-      //Get Tables to migrate and sync
-      $tables = $migrateService->getMainTables(array_column($modules, 'dbPrefix'));
+    //Processes to enabled or disabled (This includes permissions processes)
+    $this->setEnabledModules($modules);
 
-      //Sync tables from base tenant with the tenant created
-      foreach ($tables as $tableName) {
-        $migrateService->syncTable($tableName);
-      }
-
-      //Copy Media Data
-      $migrateService->copyMediaData($modules);
-
-      //Copy Fillable Data
-      $migrateService->copyFillableData($modules);
-
-      //Processes to enabled or disabled
-      $this->setEnabledModules($modules);
-
-      //Clear Cache Modules | CASE: Only when is installing a Module
-      $this->clearCacheModules();
-    }
-
+    //Clear Cache Modules
+    $this->clearCacheModules();
 
     \Log::info('------------------------------------------------');
-    \Log::info($this->log . "END");
+    \Log::info($this->log . "installModules|END");
     \Log::info('------------------------------------------------');
 
   }
 
+  /**
+   * Manage modules process with enable attribute or not
+   * used by: Endpoint ManageModules
+   */
+  public function manageModules()
+  {
+    \Log::info($this->log."Manage Modules");
+
+    //Only active or desactive module
+    if(isset($this->data['enabled'])){
+
+      //Get All Modules to set enable or disabled
+      $modules = $this->getModules($this->data['modules']);
+
+      //Check all modules
+      foreach ($modules as $key => $module) {
+        //Module not installed
+        if (isset($module['installed']) && !$module['installed']) {
+          $this->migrateService->migrateAndCopyDataFromModules([$key => $module]);
+        }
+      }
+
+      //Processes to enabled or disabled (All Modules)
+      $this->setEnabledModules($modules);
+      $this->clearCacheModules();
+
+    }else{
+
+      //Only install modules
+      $this->installModules();
+
+    }
+
+  }
 
   /**
    * Get Modules to Install or to Ignore
@@ -95,19 +122,34 @@ class ModuleService
 
       //Check if the modules to install are disabled
       $params = ['filter' => [
-        'alias' => ['where' => 'in', 'value' => $modules],
-        'enabled' => 0
+        'alias' => ['where' => 'in', 'value' => $modules]
       ]];
+
+      //Caso en que solo sea proceso de instalacion
+      if(!isset($this->data['enabled'])){
+        $params['filter']['enabled'] = 0;
+        $params['filter']['installed'] = 0;
+      }
+
+      //Get Modules
       $modulesData = $this->moduleRepository->getItemsBy(json_decode(json_encode($params)));
 
-      //Get Alias
-      $modulesAlias = $modulesData->pluck('alias')->toArray();
-      //Intersect to get dependences
-      $matchedModules = array_intersect_key($this->optionalModules, array_flip($modulesAlias));
+      //Get only this attrs
+      $modulesAttributes = $modulesData->pluck('installed', 'alias')->toArray();
 
+      //Intersect to get dependences
+      $matchedModules = array_intersect_key($this->optionalModules, $modulesAttributes);
+
+      // Add 'installed' to matchedModules
+      foreach ($matchedModules as $alias => &$details) {
+          $details['installed'] = $modulesAttributes[$alias];
+      }
+
+      //move and return data
       return $this->moveToFirstLevel($matchedModules);
+
     } else {
-      //Mdoules to ignore
+      //Modules to ignore
       $modulesFirstLevel = $this->moveToFirstLevel($this->optionalModules);
       // Filter out the existing modules
       return array_diff_key($modulesFirstLevel, array_flip($modules));
@@ -135,19 +177,21 @@ class ModuleService
   }
 
   /*
-     * Modules to set Enabled or Disabled incluiding permissions
-     */
+  * Modules to set Enabled or Disabled incluiding permissions
+  */
   private function setEnabledModules(array $modules)
   {
     \Log::info($this->log . "setEnabledModules");
 
-    $enabled = (int)$this->includeModules;
+    //Esto es para el caso de Manage modulos, se valida con la variable que se envia y no con el include modules
+    $enabled = isset($this->data['enabled']) ? $this->data['enabled'] : (int)$this->includeModules;
+    $installed = (int)$this->includeModules;
 
     //Get only module names
     $modulesIndex = array_keys($modules);
 
     //set enabled or disabled
-    \DB::table('isite__modules')->whereIn('alias', $modulesIndex)->update(['enabled' => $enabled]);
+    \DB::table('isite__modules')->whereIn('alias', $modulesIndex)->update(['enabled' => $enabled,'installed'=> $installed]);
 
     $this->setStatusPermissions($modules);
   }
@@ -159,7 +203,7 @@ class ModuleService
   {
     \Log::info($this->log . "setStatusPermissions");
 
-    $status = $this->includeModules;
+    $status = isset($this->data['enabled']) ? $this->data['enabled'] : $this->includeModules;
 
     //Get only module names
     $modulesIndex = array_keys($modules);
@@ -174,7 +218,7 @@ class ModuleService
     foreach ($modulesData as $module) {
       foreach ($module->permissions ?? [] as $entity => $permissions) {
         foreach ($permissions as $action => $permission) {
-          $allPermissions[$entity . ".$action"] = $status;
+          $allPermissions[$entity . ".$action"] = (boolean)$status;
         }
       }
     }
