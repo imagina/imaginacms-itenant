@@ -36,6 +36,7 @@ return [
     |--------------------------------------------------------------------------
     */
     'tenant' => [
+        "baseTenantUrl" => "https://base.weygo-v10.ozonohosting.com",
         //App URL (Used to domain)
         'appUrl' => ''
     ],
