@@ -35,10 +35,8 @@ class OrganizationApiController extends BaseCrudController
    */
   public function create(Request $request)
   {
-
     try {
-
-      //\DB::beginTransaction();
+      \DB::beginTransaction();
 
       //Get data
       $data = $request->input('attributes');
@@ -57,14 +55,12 @@ class OrganizationApiController extends BaseCrudController
       $baseService= app("Modules\Itenant\Services\BaseService");
       $response = $baseService->createTenantInMultiDatabase($data);
 
-      //\DB::commit();//Commit to DataBase
-
+      \DB::commit();//Commit to DataBase
       $response = ['data' => $response];
     } catch (\Exception $e) {
-      //\DB::rollback();//Rollback to Data Base
+      \DB::rollback();//Rollback to Data Base
       $status = $this->getStatusError($e->getCode());
-      \Log::error($e);
-      $response = ["errors" => $e->getMessage()];
+      $response = ['messages' => [['message' => $e->getMessage(), 'type' => 'error']]];
     }
 
     return response()->json($response, $status ?? 200);

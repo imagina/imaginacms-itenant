@@ -108,7 +108,6 @@ class BaseService
     $this->createDomain($organization);
 
     return $organization;
-
   }
 
   /**
@@ -116,7 +115,7 @@ class BaseService
    */
   private function createOrganization($data)
   {
-
+    //TODO: Solo se valida el idioma por defecto para crear un tenant?
     $dataToCreate = [
       'user_id' => $data['user']->id,
       'title' => $data[locale()]['title'] ?? $data['user']->present()->fullname,
@@ -124,6 +123,18 @@ class BaseService
       'enable' => $data['enable'] ?? json_decode(setting('itenant::defaultTenantStatus', null, 'true')),
       'category_id' => $data['category_id'] ?? null,
     ];
+
+    //validate title doen't exist
+    $orgRepository = app('Modules\Itenant\Repositories\OrganizationRepository');
+    $organization = $orgRepository->getItem($dataToCreate['title'], json_decode(json_encode([
+      'filter' => ['field' => 'title']
+    ])));
+
+    //Validate title is available
+    if($organization) throw new \Exception(trans(
+      'itenant::common.tenant.titleNotAvailable',
+      ['title' => $dataToCreate['title']]
+    ), 500);
 
     //Create Organization
     $organization = Organization::create($dataToCreate);

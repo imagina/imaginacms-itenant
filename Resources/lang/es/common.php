@@ -1,29 +1,31 @@
 <?php
 
 return [
-    
-    'settingGroups' => [
-        'general' => 'General',
-        'singledatabase' => 'SingleDatabase' 
-    ],
 
-    
-    'settings' => [
+  'settingGroups' => [
+    'general' => 'General',
+    'singledatabase' => 'SingleDatabase'
+  ],
 
-        'tenant' => [
-            'group' => 'Tenant',
-            'tenantWithCentralData' => 'Entidades con data central',
-            'entities' => [
-                'setting' => 'Settings',
-                'page' => 'Páginas',
-                'slider' => 'Sliders',
-                'slide' => 'Slides',
-                'menu' => 'Menus',
-                'menuitem' => 'Menus Items',
-            ],
-            'defaultTenantStatus' => 'Default Tenant Status'
-        ]
 
+  'settings' => [
+
+    'tenant' => [
+      'group' => 'Tenant',
+      'tenantWithCentralData' => 'Entidades con data central',
+      'entities' => [
+        'setting' => 'Settings',
+        'page' => 'Páginas',
+        'slider' => 'Sliders',
+        'slide' => 'Slides',
+        'menu' => 'Menus',
+        'menuitem' => 'Menus Items',
+      ],
+      'defaultTenantStatus' => 'Default Tenant Status'
     ]
-    
+
+  ],
+  'tenant' => [
+    'titleNotAvailable' => 'Título <b>:title</b> no disponible',
+  ]
 ];
