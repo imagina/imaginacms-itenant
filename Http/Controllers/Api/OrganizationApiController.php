@@ -136,6 +136,26 @@ class OrganizationApiController extends BaseCrudController
     return response()->json($response, $status ?? 200);
   }
 
+  /**
+   * Controller to delete model by criteria
+   *
+   * @return mixed
+   */
+  public function delete($criteria, Request $request)
+  {
+    //TODO: IMPORTANT! DISABLE THIS to production
+    \DB::beginTransaction();
+    try {
+      $baseService= app("Modules\Itenant\Services\DeleteTenantService");
+      return $baseService->deleteTenantInMultiDatabase($criteria);
+      \DB::commit(); //Commit to Data Base
+    } catch (\Exception $e) {
+      \DB::rollback(); //Rollback to Data Base
+      $status = $this->getStatusError($e->getCode());
+      $response = ['messages' => [['message' => $e->getMessage(), 'type' => 'error']]];
+    }
 
-
+    //Return response
+    return response()->json($response ?? ['data' => 'Request successful'], $status ?? 200);
+  }
 }

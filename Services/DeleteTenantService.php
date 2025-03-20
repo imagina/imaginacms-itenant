@@ -3,7 +3,6 @@
 namespace Modules\Itenant\Services;
 
 use Modules\Itenant\Entities\Organization;
-use Modules\Itenant\Entities\UserOrganization;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -23,6 +22,10 @@ class DeleteTenantService
     \Log::info('----------------------------------------------------------');
 
     try {
+      // Delete Storage Directories
+      \Log::info($this->log . "Deleting Storage Directories...");
+      $this->deleteStoreDisk($organizationId);
+
       // Find the organization
       $organization = Organization::find($organizationId);
       if (!$organization) {
@@ -30,32 +33,26 @@ class DeleteTenantService
       }
 
       // Retrieve tenant DB credentials
-      $tenantData = json_decode($organization->data, true);
-      if (!isset($tenantData['tenancy_db_name'])) {
+      $dbName = $organization->tenancy_db_name;
+      if (!$dbName) {
         throw new \Exception("Missing tenant database details for Organization ID: $organizationId", 500);
       }
-
-      $dbName = $tenantData['tenancy_db_name'];
 
       // Drop the Tenant Database
       \Log::info($this->log . "Dropping Tenant Database: $dbName");
       $this->dropTenantDatabase($dbName);
 
-      // Delete Storage Directories
-      \Log::info($this->log . "Deleting Storage Directories...");
-      $this->deleteStoreDisk($organization);
-
       // Delete Domains
       \Log::info($this->log . "Deleting Tenant Domains...");
-      $organization->domains()->delete();
+      $organization->domains()->forceDelete();
 
       // Delete User Organization Relations
       \Log::info($this->log . "Deleting User Organization Relations...");
-      UserOrganization::where('organization_id', $organizationId)->delete();
+      $organization->users()->detach();
 
       // Delete Organization Record
       \Log::info($this->log . "Deleting Organization Record...");
-      $organization->delete();
+      $organization->forceDelete();
 
       \Log::info('----------------------------------------------------------');
       \Log::info($this->log . "deleteTenantFromCentral|SUCCESS | OrganizationId: $organizationId");
@@ -65,7 +62,6 @@ class DeleteTenantService
         "status" => "success",
         "message" => "Tenant deleted successfully",
       ];
-
     } catch (\Exception $e) {
       \Log::error($this->log . "deleteTenantFromCentral|ERROR: " . $e->getMessage());
       return [
@@ -88,13 +84,13 @@ class DeleteTenantService
   /**
    * Delete Store Disk for a Tenant
    */
-  private function deleteStoreDisk($organization)
+  private function deleteStoreDisk($organizationId)
   {
-    \Log::info($this->log . "Deleting storage folders for organization: " . $organization->id);
+    \Log::info($this->log . "Deleting storage folders for organization: " . $organizationId);
 
-    Storage::disk('privatemedia')->deleteDirectory('organization' . $organization->id);
-    Storage::disk('local')->deleteDirectory('/storage/organization' . $organization->id);
-    Storage::disk('public')->deleteDirectory('organization' . $organization->id);
-    Storage::disk('publicmedia')->deleteDirectory('organization' . $organization->id);
+    Storage::disk('privatemedia')->deleteDirectory('organization' . $organizationId);
+    Storage::disk('local')->deleteDirectory('/storage/organization' . $organizationId);
+    Storage::disk('public')->deleteDirectory('organization' . $organizationId);
+    Storage::disk('publicmedia')->deleteDirectory('organization' . $organizationId);
   }
 }

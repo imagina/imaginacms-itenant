@@ -23,7 +23,7 @@ $router->group(['prefix' =>'/itenant/v1'], function (Router $router) {
       'prefix' => 'organizations',
       'controller' => 'OrganizationApiController',
       'permission' => 'itenant.organizations',
-      'middleware' => ['create' => []],
+      'middleware' => ['create' => [],'delete' => []],
       'customRoutes' => [ // Include custom routes if needed
         [
           'method' => 'post',
