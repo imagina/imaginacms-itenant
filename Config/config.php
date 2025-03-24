@@ -8,24 +8,6 @@ return [
     "baseTenantConnection" => 'baseTenant',
 
     /**
-     * Modules optionals
-     */
-    "optionalModules" => [
-        'icommerce' => [
-            'dbPrefix' => 'icommerce',
-            'dependencies' => [
-                'icommerceagree' => [],
-                'icommercecheckmo' => [],
-                'wishlistable' => ['dbPrefix' => 'wishlistable'],
-            ]
-        ],
-        'iblog' => ['dbPrefix' => 'iblog'],
-        'slider' => ['dbPrefix' => 'slider'],
-        'ibuilder' => ['dbPrefix' => 'ibuilder'],
-        'icommercepayu' => []
-    ],
-
-    /**
      * Base Tenant | Admin Id
      */
     "userIdAdmin" => 1,
