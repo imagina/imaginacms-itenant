@@ -31,8 +31,12 @@ class ModuleService
     $this->includeModules = $includeModules;
 
     $this->baseTenantConnection = $baseTenantConnection ?? config('asgard.itenant.config.baseTenantConnection');
-    $this->optionalModules = config('asgard.itenant.config.optionalModules');
-
+    //Instance optional modules
+    $optionalModules = [];
+    foreach (iconfig('config.tenant', true, false) as $key => $value) {
+      if (is_array($value) && isset($value['dbPrefix'])) $optionalModules[strtolower($key)] = $value;
+    }
+    $this->optionalModules = $optionalModules;
     $this->moduleRepository = app("Modules\Isite\Repositories\ModuleRepository");
 
     $this->migrateService = app()->makeWith(MigrateService::class, [
@@ -59,7 +63,7 @@ class ModuleService
 
     //Extra Validation
     if (empty($modules))
-      throw new \Exception('There are no modules to process (Modules already installed, if you need to enable them again or disable them, use the [enabled] attribute)',500);
+      throw new \Exception('There are no modules to process (Modules already installed, if you need to enable them again or disable them, use the [enabled] attribute)', 500);
 
     //Processes to migrate
     $this->migrateService->migrateAndCopyDataFromModules($modules);
@@ -82,10 +86,10 @@ class ModuleService
    */
   public function manageModules()
   {
-    \Log::info($this->log."Manage Modules");
+    \Log::info($this->log . "Manage Modules");
 
     //Only active or desactive module
-    if(isset($this->data['enabled'])){
+    if (isset($this->data['enabled'])) {
 
       //Get All Modules to set enable or disabled
       $modules = $this->getModules($this->data['modules']);
@@ -102,7 +106,7 @@ class ModuleService
       $this->setEnabledModules($modules);
       $this->clearCacheModules();
 
-    }else{
+    } else {
 
       //Only install modules
       $this->installModules();
@@ -126,7 +130,7 @@ class ModuleService
       ]];
 
       //Caso en que solo sea proceso de instalacion
-      if(!isset($this->data['enabled'])){
+      if (!isset($this->data['enabled'])) {
         $params['filter']['enabled'] = 0;
         $params['filter']['installed'] = 0;
       }
@@ -142,7 +146,7 @@ class ModuleService
 
       // Add 'installed' to matchedModules
       foreach ($matchedModules as $alias => &$details) {
-          $details['installed'] = $modulesAttributes[$alias];
+        $details['installed'] = $modulesAttributes[$alias];
       }
 
       //move and return data
@@ -191,7 +195,7 @@ class ModuleService
     $modulesIndex = array_keys($modules);
 
     //set enabled or disabled
-    \DB::table('isite__modules')->whereIn('alias', $modulesIndex)->update(['enabled' => $enabled,'installed'=> $installed]);
+    \DB::table('isite__modules')->whereIn('alias', $modulesIndex)->update(['enabled' => $enabled, 'installed' => $installed]);
 
     $this->setStatusPermissions($modules);
   }

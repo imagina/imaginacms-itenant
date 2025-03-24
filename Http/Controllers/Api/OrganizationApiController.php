@@ -35,9 +35,8 @@ class OrganizationApiController extends BaseCrudController
    */
   public function create(Request $request)
   {
+    \DB::beginTransaction();
     try {
-      \DB::beginTransaction();
-
       //Get data
       $data = $request->input('attributes');
 

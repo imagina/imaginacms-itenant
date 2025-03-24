@@ -22,6 +22,10 @@ class DeleteTenantService
     \Log::info('----------------------------------------------------------');
 
     try {
+      // Find the organization
+      if ($organizationId == 1) {
+        throw new \Exception("Base Organization can't be deleted", 404);
+      }
       // Delete Storage Directories
       \Log::info($this->log . "Deleting Storage Directories...");
       $this->deleteStoreDisk($organizationId);
