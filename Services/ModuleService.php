@@ -2,7 +2,7 @@
 
 namespace Modules\Itenant\Services;
 
-use Modules\Core\Icrud\Services\MigrateService;
+use Modules\Itenant\Services\MigrateService;
 
 
 class ModuleService
