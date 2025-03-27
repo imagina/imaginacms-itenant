@@ -9,14 +9,14 @@ class ThemeService
 
   private $log = "Itenant: ThemeService|| ";
 
-  private $modulesPrefix = ['ibuilder'] ;
+  private $modulesPrefix = ['ibuilder'];
   private $migrateService;
   private $layoutId;
 
   /**
    * Contruct
    */
-  public function __construct(int $layoutId,$baseConnection, object $organization)
+  public function __construct(int $layoutId, $baseConnection, object $organization)
   {
     $this->layoutId = $layoutId;
     $this->baseConnection = $baseConnection;
@@ -40,6 +40,11 @@ class ThemeService
     \Log::info($this->log . "INIT");
     \Log::info('------------------------------------------------');
 
+    //TODO: Revisar por que los modulos insertan las tablas pero no deberian poner la data,
+    // pero si se pone en config no se activa...
+    //set enabled or disabled ibuilder module
+    \DB::table('isite__modules')->where('alias', 'ibuilder')->update(['enabled' => 1, 'installed' => 1]);
+
     //Create Ibuilder Tables if not exist
     $this->createTables();
 
@@ -47,7 +52,7 @@ class ThemeService
     $existLayout = \DB::table('ibuilder__layouts')->where('id', $this->layoutId)->first();
 
     //Continue with Processes
-    if(is_null($existLayout)){
+    if (is_null($existLayout)) {
 
       //Set default in 0 if exist
       $this->updateDefaultLayout();
@@ -61,23 +66,24 @@ class ThemeService
       $this->addbuildables();
 
       //Main Layout has anothers layouts
-      if(!is_null($optionsLayout))
-      {
+      if (!is_null($optionsLayout)) {
         \Log::info($this->log . 'createLayouts|Layout has Options Layouts');
         $optionsLayout2 = json_decode($optionsLayout);
         foreach ($optionsLayout2 as $key => $layoutId) {
+          if (in_array($key, ['headerLayoutId', 'footerLayoutId'])) {
             $result = $this->createLayout($layoutId);
             $this->createBlocks($layoutId);
+          }
         }
       }
 
-    }else{
+    } else {
 
       //The Layouts exist and is not the default
-      if(!$existLayout->default){
+      if (!$existLayout->default) {
         $this->updateDefaultLayout();
         // $existLayout is new default
-        \DB::table('ibuilder__layouts')->where('id',$existLayout->id)->update(['default' => 1]);
+        \DB::table('ibuilder__layouts')->where('id', $existLayout->id)->update(['default' => 1]);
       }
 
     }
@@ -94,15 +100,14 @@ class ThemeService
   private function createTables()
   {
 
-    if (!\Schema::hasTable("ibuilder__layouts"))
-    {
+    if (!\Schema::hasTable("ibuilder__layouts")) {
       \Log::info($this->log . 'createTables');
 
       //Get Tables to migrate and sync
       $tables = $this->migrateService->getMainTables($this->modulesPrefix);
 
       //Sync tables from base
-      $this->migrateService->syncTables($tables,false); //False to not Copy data for this case
+      $this->migrateService->syncTables($tables, false); //False to not Copy data for this case
 
     }
 
@@ -114,17 +119,19 @@ class ThemeService
   private function createLayout(int $layoutId)
   {
 
-    \Log::info($this->log . 'createLayouts|LayoutId: '.$layoutId);
+    \Log::info($this->log . 'createLayouts|LayoutId: ' . $layoutId);
 
     //Get data from Base Connection
     $baseLayout = \DB::connection($this->baseConnection)->table('ibuilder__layouts')->where('id', $layoutId)->first();
     $baseLayoutTranslations = \DB::connection($this->baseConnection)->table('ibuilder__layout_translations')->where('layout_id', $layoutId)->get();
 
     //Set infor to base layout
-    if($baseLayout->type=='home') $baseLayout = $this->setDataToBaseLayout($baseLayout);
+    $baseLayout = $this->setDataToBaseLayout($baseLayout);
 
     //baseLayoutTranslations To Array
-    $baseLayoutTranslationsArray = $baseLayoutTranslations->map(function($item) { return (array) $item; })->toArray();
+    $baseLayoutTranslationsArray = $baseLayoutTranslations->map(function ($item) {
+      return (array)$item;
+    })->toArray();
 
     //Insert Data
     \Log::info($this->log . 'createLayouts|Inserting Layouts..');
@@ -169,15 +176,17 @@ class ThemeService
     $baseBlocksTranslations = \DB::connection($this->baseConnection)->table('ibuilder__block_translations')->whereIn('block_id', $blockIds)->get();
 
     //Convert to Array to insert and set organization id | Blocks
-    $baseBlocksArray = $baseBlocks->map(function($item) {
-      $itemArray = (array) $item;
+    $baseBlocksArray = $baseBlocks->map(function ($item) {
+      $itemArray = (array)$item;
       if (array_key_exists('organization_id', $itemArray))
         $itemArray['organization_id'] = $this->organization->id;
       return $itemArray;
     })->toArray();
 
     //Convert to Array Translations to insert
-    $baseBlocksTranslationsArray = $baseBlocksTranslations->map(function($item) { return (array) $item; })->toArray();
+    $baseBlocksTranslationsArray = $baseBlocksTranslations->map(function ($item) {
+      return (array)$item;
+    })->toArray();
 
     //Insert| Blocks and Block translations
     \Log::info($this->log . 'createBlocks|Inserting Blocks..');
@@ -186,8 +195,8 @@ class ThemeService
     \DB::table('ibuilder__block_translations')->insert($baseBlocksTranslationsArray);
 
     //Convert to Array to insert and set organization id | Layout Blocks
-    $baseBlocksFromRelationArray = $baseBlocksFromRelation->map(function($item) {
-      $itemArray = (array) $item;
+    $baseBlocksFromRelationArray = $baseBlocksFromRelation->map(function ($item) {
+      $itemArray = (array)$item;
       if (array_key_exists('organization_id', $itemArray))
         $itemArray['organization_id'] = $this->organization->id;
       return $itemArray;
@@ -213,12 +222,12 @@ class ThemeService
 
     \Log::info($this->log . 'copyMediaBlocks');
 
-    $queryWhere = function($query) use ($blockIds) {
+    $queryWhere = function ($query) use ($blockIds) {
       $query->where('imageable_type', 'Modules\\Ibuilder\\Entities\\Block')
-            ->whereIn('imageable_id', $blockIds);
+        ->whereIn('imageable_id', $blockIds);
     };
 
-    $this->migrateService->copyMediaData(null,$queryWhere);
+    $this->migrateService->copyMediaData(null, $queryWhere);
 
 
   }
@@ -231,12 +240,12 @@ class ThemeService
 
     \Log::info($this->log . 'copyFillableBlocks');
 
-    $queryWhere = function($query) use ($blockIds) {
+    $queryWhere = function ($query) use ($blockIds) {
       $query->where('entity_type', 'Modules\\Ibuilder\\Entities\\Block')
-            ->whereIn('entity_id', $blockIds);
+        ->whereIn('entity_id', $blockIds);
     };
 
-    $this->migrateService->copyFillableData(null,$queryWhere);
+    $this->migrateService->copyFillableData(null, $queryWhere);
 
   }
 
@@ -274,8 +283,8 @@ class ThemeService
 
     //Set new default value only type home
     \DB::table('ibuilder__layouts')
-          ->where(['type' => 'home', 'default' => 1])
-          ->update(['default' => 0]);
+      ->where(['type' => 'home', 'default' => 1])
+      ->update(['default' => 0]);
 
   }
 
