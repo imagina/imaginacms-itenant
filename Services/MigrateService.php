@@ -141,7 +141,7 @@ class MigrateService
         if($copyData){
 
           //Ilocations will be seeder later || No copy data to Media | No Copy data Ifillable | No Copy data Ibuilder
-          if (!in_array($moduleName[0], ['ilocations','ifillable','media'])) {
+          if (!in_array($moduleName[0], ['ilocations','ifillable','media']) && !in_array($tableName, ['isite__revisions'])) {
 
             //insert data table
             $data = \DB::connection($this->baseConnection)->table($tableName)->get();

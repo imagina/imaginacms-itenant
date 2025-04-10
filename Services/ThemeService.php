@@ -68,11 +68,24 @@ class ThemeService
       //Main Layout has anothers layouts
       if (!is_null($optionsLayout)) {
         \Log::info($this->log . 'createLayouts|Layout has Options Layouts');
-        $optionsLayout2 = json_decode($optionsLayout);
-        foreach ($optionsLayout2 as $key => $layoutId) {
-          if (in_array($key, ['headerLayoutId', 'footerLayoutId'])) {
-            $result = $this->createLayout($layoutId);
-            $this->createBlocks($layoutId);
+        foreach (json_decode($optionsLayout) as $optionKey => $optionValue) {
+          //Added extra layouts
+          if (in_array($optionKey, [
+            'headerLayoutId', 'footerLayoutId',
+            'pageUsLayoutId', 'pageContactLayoutId', 'pageDefaultLayoutId',
+            'BlogShowLayoutId', 'BlogCategoryLayoutId'
+          ])) {
+            $result = $this->createLayout($optionValue);
+            $this->createBlocks($optionValue);
+          }
+          //Updated brand seting colors
+          if (in_array($optionKey, ['brandPrimary', 'brandSecondary', 'brandTertiary', 'brandQuaternary'])) {
+            \DB::table('setting__settings')->where('name', "isite::$optionKey")->update(['plainValue' => $optionValue]);
+          }
+          //Added custom css and js
+          if (in_array($optionKey, ['customCss', 'customJs'])) {
+            \DB::table('setting__settings')->where('name', "isite::$optionKey")
+              ->update(['plainValue' => \DB::raw("CONCAT(plainValue, " . \DB::getPdo()->quote("\n\n" . trim($optionValue)) . ")")]);
           }
         }
       }
@@ -124,6 +137,7 @@ class ThemeService
     //Get data from Base Connection
     $baseLayout = \DB::connection($this->baseConnection)->table('ibuilder__layouts')->where('id', $layoutId)->first();
     $baseLayoutTranslations = \DB::connection($this->baseConnection)->table('ibuilder__layout_translations')->where('layout_id', $layoutId)->get();
+    $baseLayoutBuildable = \DB::connection($this->baseConnection)->table('ibuilder__buildables')->where('layout_id', $layoutId)->get();
 
     //Set infor to base layout
     $baseLayout = $this->setDataToBaseLayout($baseLayout);
@@ -138,6 +152,20 @@ class ThemeService
     \DB::table('ibuilder__layouts')->insert((array)$baseLayout);
     \Log::info($this->log . 'createLayouts|Inserting Layouts Translations..');
     \DB::table('ibuilder__layout_translations')->insert($baseLayoutTranslationsArray);
+    \Log::info($this->log . 'createLayouts|Inserting Layout Buildables..');
+    foreach ($baseLayoutBuildable as $buildable) {
+      \DB::table('ibuilder__buildables')->updateOrInsert(
+        [
+          'entity_type' => $buildable->entity_type,
+          'entity_id'   => $buildable->entity_id,
+          'type'        => $buildable->type,
+        ],
+        [
+          'layout_id'   => $buildable->layout_id,
+          "organization_id" => $this->organization->id
+        ]
+      );
+    }
 
     //Return Base Layout
     return $baseLayout->options;
@@ -169,7 +197,13 @@ class ThemeService
 
     //Get Blocks from Relation Layout Blocks in Base Connection
     $baseBlocksFromRelation = \DB::connection($this->baseConnection)->table('ibuilder__layout_blocks')->where('layout_id', $layoutId)->get();
-    $blockIds = $baseBlocksFromRelation->pluck('block_id');
+    $layoutBlocksId = $baseBlocksFromRelation->pluck('block_id');
+
+    // Get existing block_ids from new tenant connection
+    $existingBlockIds = \DB::table('ibuilder__blocks')->whereIn('id', $layoutBlocksId)->pluck('id');
+
+    // Filter out already existing block_ids
+    $blockIds = $layoutBlocksId->diff($existingBlockIds)->values();
 
     //Get Infor Blocks in Base Connection
     $baseBlocks = \DB::connection($this->baseConnection)->table('ibuilder__blocks')->whereIn('id', $blockIds)->get();
@@ -211,7 +245,6 @@ class ThemeService
 
     //BlocksIds to search the infor and copy
     $this->copyFillableBlocks($blockIds);
-
   }
 
   /**
