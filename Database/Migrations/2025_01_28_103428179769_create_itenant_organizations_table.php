@@ -28,7 +28,7 @@ return new class extends Migration
             $table->text('maintenance_mode')->nullable();
 
             $table->integer('category_id')->unsigned()->nullable();
-            $table->foreign('category_id')->references('id')->on('isite__categories')->onDelete('restrict');
+            $table->foreign('category_id')->references('id')->on('itenant__categories')->onDelete('restrict');
 
             // Audit fields
             $table->timestamps();

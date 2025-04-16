@@ -124,6 +124,11 @@ class BaseService
       'category_id' => $data['category_id'] ?? null,
     ];
 
+    //add options data to save
+    if(isset($data['business_description'])){
+      $dataToCreate['options'] = ['business_description' => $data['business_description']];
+    }
+
     //validate title doen't exist
     $orgRepository = app('Modules\Itenant\Repositories\OrganizationRepository');
     $organization = $orgRepository->getItem($dataToCreate['title'], json_decode(json_encode([
