@@ -27,12 +27,12 @@ class Category extends CrudModel
     'deleted' => []
   ];
   public $translatedAttributes = [
-    'title', 
-    'description', 
-    'slug', 
-    'meta_title', 
-    'meta_description', 
-    'meta_keywords', 
+    'title',
+    'description',
+    'slug',
+    'meta_title',
+    'meta_description',
+    'meta_keywords',
     'translatable_options'
   ];
 
@@ -58,16 +58,6 @@ class Category extends CrudModel
   public function organizations()
   {
       return $this->hasMany(Organization::class);
-  }
-
-  public function getUrlAttribute()
-  {
-      $url = '';
-      $currentLocale = \LaravelLocalization::getCurrentLocale();
-
-      $url = route($currentLocale.'.itenant.organizations.index.category', [$this->slug]);
-
-      return $url;
   }
 
   public function getLftName()

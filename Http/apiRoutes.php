@@ -59,7 +59,7 @@ $router->group(['prefix' =>'/itenant/v1'], function (Router $router) {
       'prefix' => 'categories',
       'controller' => 'CategoryApiController',
       'permission' => 'itenant.categories',
-      //'middleware' => ['create' => [], 'index' => [], 'show' => [], 'update' => [], 'delete' => [], 'restore' => []],
+      'middleware' => ['index' => [], 'show' => []],
       // 'customRoutes' => [ // Include custom routes if needed
       //  [
       //    'method' => 'post', // get,post,put....
