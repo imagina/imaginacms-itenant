@@ -6,18 +6,20 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Bus\Queueable;
 
 class IAContent implements ShouldQueue
 {
-  use Dispatchable, InteractsWithQueue, SerializesModels;
+  use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
   private $modulesConfig;
   private $organization;
   private $modules;
+  private $log;
 
-  public function __construct($organization, $params = [])
+  public function __construct($params = [])
   {
-    $this->organization = $organization;
+    $this->organization = $params['organization'];
     $this->modules = $params['modules'] ?? [];
     $this->modulesConfig = [
       'iblog' => [
@@ -47,7 +49,7 @@ class IAContent implements ShouldQueue
           'module_type' => 'product-category',
           'extraPrompt' => 'generate commercial product groupings (e.g., "Appetizers", "Beverages").'
         ],
-        'post' => [
+        'product' => [
           'repository' => 'Modules\Icommerce\Repositories\ProductRepository',
           'translatedAttributes' => 'name, description, slug, summary',
           'generate_img' => true,
@@ -57,10 +59,14 @@ class IAContent implements ShouldQueue
         ],
       ]
     ];
+    $this->log = 'Itenant::IAcontent --> ';
   }
 
   public function handle()
   {
+    \Log::info('------------------------------------------------');
+    \Log::info($this->log . "START");
+    \Log::info('------------------------------------------------');
     foreach ($this->modules as $moduleName) {
       if (isset($this->modulesConfig[$moduleName])) {
         $this->updateModuleData($moduleName, $this->modulesConfig[$moduleName]);
@@ -70,8 +76,10 @@ class IAContent implements ShouldQueue
 
   public function updateModuleData($moduleName, $config)
   {
+
     $client = new \GuzzleHttp\Client();
     foreach ($config as $entityName => $entityConfig) {
+      \Log::info($this->log . "INIT|$moduleName-$entityName...");
       $repository = app($entityConfig['repository']);
       $records = $repository->getItemsBy([]);
       if (!$records->count()) continue;
@@ -99,6 +107,7 @@ class IAContent implements ShouldQueue
           'en' => $newContent[$index]['en']
         ]);
       }
+      \Log::info($this->log . "Finish|$moduleName-$entityName...");
     }
   }
 }

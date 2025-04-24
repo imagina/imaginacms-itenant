@@ -3,7 +3,7 @@
 namespace Modules\Itenant\Services;
 
 use Modules\Itenant\Services\MigrateService;
-
+use Modules\Itenant\Jobs\IAContent;
 
 class ModuleService
 {
@@ -65,8 +65,8 @@ class ModuleService
     if (empty($modules))
       throw new \Exception('There are no modules to process (Modules already installed, if you need to enable them again or disable them, use the [enabled] attribute)', 500);
 
-    //Processes to migrate
-    $this->migrateService->migrateAndCopyDataFromModules($modules);
+    //Processes the modules content
+    $this->instanceContent($modules);
 
     //Processes to enabled or disabled (This includes permissions processes)
     $this->setEnabledModules($modules);
@@ -98,7 +98,7 @@ class ModuleService
       foreach ($modules as $key => $module) {
         //Module not installed
         if (isset($module['installed']) && !$module['installed']) {
-          $this->migrateService->migrateAndCopyDataFromModules([$key => $module]);
+          $this->installModules([$key => $module]);
         }
       }
 
@@ -158,6 +158,18 @@ class ModuleService
       // Filter out the existing modules
       return array_diff_key($modulesFirstLevel, array_flip($modules));
     }
+  }
+
+  private function instanceContent($modules)
+  {
+    //Migrate data table
+    $this->migrateService->migrateAndCopyDataFromModules($modules);
+    //Use AI to generate dynamic content to modules
+    $aiModules = $this->includeModules ? array_keys($modules) : $this->data['modules'];
+    IAContent::dispatch([
+      'organization' => tenant(),
+      'modules' => $aiModules
+    ])->onQueue('iaContent');
   }
 
   /**
@@ -246,6 +258,4 @@ class ModuleService
       \Illuminate\Support\Facades\Cache::flush('*isite_module_all_modules' . (tenant()->id ?? '') . '*');
     }
   }
-
-
 }
