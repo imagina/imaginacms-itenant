@@ -24,12 +24,15 @@ class IAContent implements ShouldQueue
     $this->modulesConfig = [
       'iblog' => [
         'category' => [
-          'repository' => 'Modules\Iblog\Repositories\CategoryRepository',
           'translatedAttributes' => 'title,description, slug',
           'generate_img' => true,
           'module' => 'Blog',
           'module_type' => 'post-category',
-          'extraPrompt' => 'generate high-level thematic or organizational categories suitable for the module (e.g., "Recipes", "Health Tips", "Traditional Dishes").'
+          'extraPrompt' => 'generate high-level thematic or organizational categories suitable for the module (e.g., "Recipes", "Health Tips", "Traditional Dishes").',
+          'repository' => 'Modules\Iblog\Repositories\CategoryRepository',
+          'requestParams' => ['filter' => [
+            'slug' => ['where' => 'notIn', 'value' => ['blog', 'servicios']]
+          ]],
         ],
         'post' => [
           'repository' => 'Modules\Iblog\Repositories\PostRepository',
@@ -47,7 +50,7 @@ class IAContent implements ShouldQueue
           'generate_img' => true,
           'module' => 'Ecommerce',
           'module_type' => 'product-category',
-          'extraPrompt' => 'generate commercial product groupings (e.g., "Appetizers", "Beverages").'
+          'extraPrompt' => 'generate commercial product groupings (e.g., "Appetizers", "Beverages").',
         ],
         'product' => [
           'repository' => 'Modules\Icommerce\Repositories\ProductRepository',
@@ -80,8 +83,11 @@ class IAContent implements ShouldQueue
     $client = new \GuzzleHttp\Client();
     foreach ($config as $entityName => $entityConfig) {
       \Log::info($this->log . "INIT|$moduleName-$entityName...");
+
+      //Request the records to update
       $repository = app($entityConfig['repository']);
-      $records = $repository->getItemsBy([]);
+      $requestParams = json_decode(json_encode($entityConfig['requestParams'] ?? []));
+      $records = $repository->getItemsBy($requestParams);
       if (!$records->count()) continue;
 
       //instance request Data
