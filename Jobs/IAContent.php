@@ -25,19 +25,20 @@ class IAContent implements ShouldQueue
       'iblog' => [
         'category' => [
           'translatedAttributes' => 'title,description, slug',
-          'generate_img' => true,
+          'mediaZones' => ['mainimage' => 1],
           'module' => 'Blog',
           'module_type' => 'post-category',
           'extraPrompt' => 'generate high-level thematic or organizational categories suitable for the module (e.g., "Recipes", "Health Tips", "Traditional Dishes").',
           'repository' => 'Modules\Iblog\Repositories\CategoryRepository',
-          'requestParams' => ['filter' => [
-            'slug' => ['where' => 'notIn', 'value' => ['blog', 'servicios']]
+          'requestParams' => ['include' => ['files'], 'filter' => [
+            'slug' => ['where' => 'notIn', 'value' => ['blog', 'servicios', 'categoria-principal']]
           ]],
         ],
         'post' => [
           'repository' => 'Modules\Iblog\Repositories\PostRepository',
+          'requestParams' => ['include' => ['files']],
           'translatedAttributes' => 'title, description, slug, summary',
-          'generate_img' => true,
+          'mediaZones' => ['mainimage' => 1],
           'module' => 'Blog',
           'module_type' => 'post',
           'extraPrompt' => 'generate individual content items (e.g., blog posts, articles).'
@@ -46,16 +47,18 @@ class IAContent implements ShouldQueue
       'icommerce' => [
         'category' => [
           'repository' => 'Modules\Icommerce\Repositories\CategoryRepository',
+          'requestParams' => ['include' => ['files']],
           'translatedAttributes' => 'title, h1_title, description, slug',
-          'generate_img' => true,
+          'mediaZones' => ['mainimage' => 1],
           'module' => 'Ecommerce',
           'module_type' => 'product-category',
           'extraPrompt' => 'generate commercial product groupings (e.g., "Appetizers", "Beverages").',
         ],
         'product' => [
           'repository' => 'Modules\Icommerce\Repositories\ProductRepository',
+          'requestParams' => ['include' => ['files']],
           'translatedAttributes' => 'name, description, slug, summary',
-          'generate_img' => true,
+          'mediaZones' => ['mainimage' => 1, 'gallery' => 3],
           'module' => 'Ecommerce',
           'module_type' => 'product',
           'extraPrompt' => 'generate specific items or services'
@@ -94,7 +97,8 @@ class IAContent implements ShouldQueue
       $requestData = array_merge($entityConfig, [
         "category" => $this->organization->category->title ?? '',
         "description" => $this->organization->options->business_description ?? '',
-        "quantity" => $records->count()
+        "quantity" => $records->count(),
+        'generate_img' => isset($entityConfig['mediaZones']) ? array_sum($entityConfig['mediaZones']) : 0,
       ]);
 
       //Request
@@ -107,13 +111,49 @@ class IAContent implements ShouldQueue
 
       $translatableFields = array_map('trim', explode(',', $entityConfig['translatedAttributes']));
       foreach ($records as $index => $record) {
-        $repository->updateBy($record->id, [
+        //get the media data
+        $mediaData = !isset($entityConfig['mediaZones']) ? [] :
+          $this->saveImagesByRecord($entityConfig['mediaZones'], $newContent[$index]['images']);
+        //update the content
+        $repository->updateBy($record->id, array_merge([
           'id' => $record->id,
           'es' => $newContent[$index]['es'],
           'en' => $newContent[$index]['en']
-        ]);
+        ], $mediaData));
       }
       \Log::info($this->log . "Finish|$moduleName-$entityName...");
     }
+  }
+
+  public function saveImagesByRecord($mediaZones, $images)
+  {
+    if (!count($images)) return [];
+    //init values
+    $zoneFileIds = [];
+    $imageIndex = 0;
+    $disk = $images[0]['provider'] ?? 'External';
+    $fileService = app("Modules\Media\Services\FileService");
+
+    //insert and save ids by zone
+    foreach ($mediaZones as $zoneName => $count) {
+      $zoneFileIds[$zoneName] = [];
+      for ($i = 0; $i < $count && isset($images[$imageIndex]); $i++, $imageIndex++) {
+        $file = $fileService->storeHotLinked($images[$imageIndex]['url'], $disk);
+        $zoneFileIds[$zoneName][] = $file->id;
+      }
+    }
+
+    //organice by groups
+    $organizedMedia = ['medias_single' => [], 'medias_multi' => []];
+    foreach ($zoneFileIds as $zone => $ids) {
+      if (count($ids) === 1) {
+        $organizedMedia['medias_single'][$zone] = $ids[0];
+      } elseif (count($ids) > 1) {
+        $organizedMedia['medias_multi'][$zone] = $ids;
+      }
+    }
+
+    //Response
+    return $organizedMedia;
   }
 }

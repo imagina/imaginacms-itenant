@@ -183,7 +183,6 @@ class MigrateService
   public function copyMediaData(array $modules=null, callable $queryWhere=null)
   {
     \Log::info($this->log . 'copyMediaData');
-    $fileService = app("Modules\Media\Services\FileService");
     $baseTenantMediaUrl = config('asgard.itenant.config.baseTenantMediaUrl') ?? '';
     $imageables = $this->getRowsFromModules('media__imageables','imageable_type',$modules,$queryWhere);
 
